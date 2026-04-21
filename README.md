@@ -1,6 +1,6 @@
 # Hivemind Skill
 
-A Claude Code plugin and CLI for [Hivemind](https://hivemind.myosin.xyz) — Myosin's RAG-powered marketing AI. Lets agents (and humans) call the Chat, Knowledge Search, and Projects APIs.
+A Claude Code plugin and CLI for [Hivemind](https://myosin.xyz/hivemind) — Myosin's RAG-powered marketing AI. Lets agents (and humans) call the Chat, Knowledge Search, and Projects APIs.
 
 - **Chat API** — consult Hivemind's AI personas (ghostwriter, strategist, GTM architect, general assistant)
 - **Knowledge API** — semantic search over a curated marketing knowledge base with persona filtering, metadata boosting, and LLM reranking
@@ -15,7 +15,7 @@ Inside Claude Code:
 /plugin install hivemind@hivemind
 ```
 
-That's it — Claude now auto-invokes the skill whenever you ask for marketing copy, brand strategy, go-to-market planning, knowledge lookups, or similar.
+That's it, Claude now auto-invokes the skill whenever you ask for marketing copy, brand strategy, go-to-market planning, knowledge lookups, or similar.
 
 Before first use, create the credentials file:
 
@@ -121,6 +121,6 @@ MIT — see [LICENSE](LICENSE).
 ## Links
 
 - [Request an API key](https://myosin.typeform.com/api-request)
-- [Hivemind app](https://hivemind.myosin.xyz)
-- [Upstream API docs](https://github.com/Myosin-xyz/hive-mind/blob/staging/documentation/API.md)
+- [Hivemind app](https://myosin.xyz/hivemind)
+- [Upstream API docs](https://myosinxyz.notion.site/Hivemind-API-3124252a813a80c9bdfff9bd449a320d?source=copy_link)
 - [Claude Code plugin docs](https://code.claude.com/docs/en/plugins.md)
