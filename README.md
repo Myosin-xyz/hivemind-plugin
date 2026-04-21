@@ -1,4 +1,4 @@
-# Hivemind Skill
+# Hivemind Plugin
 
 A Claude Code plugin and CLI for [Hivemind](https://myosin.xyz/hivemind) — Myosin's RAG-powered marketing AI. Lets agents (and humans) call the Chat, Knowledge Search, and Projects APIs.
 
@@ -37,7 +37,7 @@ To update later: `/plugin update hivemind`. To remove: `/plugin uninstall hivemi
 If you also want to call the APIs from a terminal, cron job, or non-Claude script:
 
 ```bash
-git clone https://github.com/Myosin-xyz/hivemind-skill.git
+git clone https://github.com/Myosin-xyz/hivemind-plugin.git
 cd hivemind-skill
 ./install.sh
 ```
