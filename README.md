@@ -11,7 +11,7 @@ A Claude Code plugin and CLI for [Hivemind](https://myosin.xyz/hivemind) — Myo
 Inside Claude Code:
 
 ```
-/plugin marketplace add Myosin-xyz/hivemind-skill
+/plugin marketplace add Myosin-xyz/hivemind-plugin
 /plugin install hivemind@hivemind
 ```
 
