@@ -29,6 +29,8 @@ Options:
   --no-rerank               Disable LLM-based reranking (default: enabled).
   --project UUID            Gate access for project-scoped keys. Results are NOT
                             filtered by project — corpus is global.
+  --no-project              Ignore HIVEMIND_PROJECT_ID from the env file and
+                            send the request without a projectId.
   --json                    Print full API JSON. Default: one result per line
                             as "score  title  --  doc_type/objective".
   --timeout N               Request timeout seconds (default: 60).
@@ -89,7 +91,7 @@ normalize_persona() {
     strategist|genius-strategist) echo "genius-strategist" ;;
     gtm|gtm-architect) echo "gtm-architect" ;;
     general|general-assistant) echo "general-assistant" ;;
-    *) die "Unknown persona '$1'" ;;
+    *) die "Unknown persona '$1'. Use: ghostwriter, strategist, gtm, general" ;;
   esac
 }
 
@@ -104,6 +106,7 @@ while [[ $# -gt 0 ]]; do
     --no-metadata-boost)   METADATA_BOOST="false"; shift ;;
     --no-rerank)           RERANK="false"; shift ;;
     --project)    [[ -n "${2:-}" ]] || die "--project requires a value"; PROJECT="$2"; shift 2 ;;
+    --no-project) PROJECT=""; shift ;;
     --json)       OUTPUT_MODE="json"; shift ;;
     --timeout)    [[ -n "${2:-}" ]] || die "--timeout requires a value"; TIMEOUT="$2"; shift 2 ;;
     --url)        [[ -n "${2:-}" ]] || die "--url requires a value"; API_URL="$2"; shift 2 ;;
@@ -170,8 +173,13 @@ fi
 if [[ "$OUTPUT_MODE" == "json" ]]; then
   jq . <<<"$BODY"
 else
+  CHUNK_COUNT="$(jq '(.data.chunks // []) | length' <<<"$BODY")"
+  if [[ "$CHUNK_COUNT" == "0" ]]; then
+    echo "No results above threshold $THRESHOLD. Try --threshold 0.2, a broader query, or --json to inspect the raw response." >&2
+    exit 0
+  fi
   jq -r '
-    .data.chunks[]?
+    .data.chunks[]
     | [ (.score|tostring), (.title // "(untitled)"), (.doc_type // ""), (.objective // "") ]
     | "\(.[0])\t\(.[1])\t\(.[2])\t\(.[3])"
   ' <<<"$BODY" | column -ts $'\t'

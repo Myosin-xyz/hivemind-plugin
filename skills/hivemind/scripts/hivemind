@@ -29,6 +29,9 @@ Options:
                         general    | general-assistant - general queries
   --stream            Stream tokens as they arrive (prints plain text to stdout).
   --project UUID      Attach project context; overrides HIVEMIND_PROJECT_ID.
+  --no-project        Ignore HIVEMIND_PROJECT_ID from the env file and send
+                      the chat unscoped (the persona won't be constrained to
+                      a project's context).
   --start-conversation  Start a new persistent conversation; requires --project.
                         Returns conversation_id + message_id in --json output.
   --conversation-id UUID
@@ -110,6 +113,7 @@ while [[ $# -gt 0 ]]; do
     --persona)      [[ -n "${2:-}" ]] || die "--persona requires a value"; PERSONA="$(normalize_persona "$2")"; shift 2 ;;
     --stream)       STREAM="true"; shift ;;
     --project)      [[ -n "${2:-}" ]] || die "--project requires a value"; PROJECT="$2"; shift 2 ;;
+    --no-project)   PROJECT=""; shift ;;
     --start-conversation) START_CONVO="true"; shift ;;
     --conversation-id) [[ -n "${2:-}" ]] || die "--conversation-id requires a value"; CONVO_ID="$2"; shift 2 ;;
     --json)         OUTPUT_MODE="json"; shift ;;

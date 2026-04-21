@@ -13,6 +13,8 @@ Hivemind is a RAG-powered marketing AI with four specialist personas and a curat
 
 All three scripts auto-load credentials from `~/.config/hivemind/env` (chmod 600). Never echo or log API keys.
 
+> **Heads up: project auto-scoping.** If `HIVEMIND_PROJECT_ID` is set in the env file, every `hivemind chat` and `hivemind-search` call attaches it by default, which can cause personas to refuse prompts that don't match the project's scope. Pass `--no-project` on an individual call to bypass the env default, or `--project <uuid>` to switch to a different project for that call. Project scope only affects chat context — `hivemind-search` corpus is global regardless.
+
 ## Script paths
 
 The scripts live inside this plugin. Invoke them at:
@@ -56,6 +58,9 @@ hivemind chat --persona gtm        "Build a Q2 launch plan for an API product"
 
 # Attach a project for extra context (pulls social + intel reports server-side)
 hivemind chat --persona strategist --project <uuid> "How should we respond to the competitor launch?"
+
+# Bypass the default project from HIVEMIND_PROJECT_ID for one call
+hivemind chat --no-project --persona ghostwriter "Unscoped copy request"
 
 # Pipe long prompts via stdin (max 8000 chars)
 cat brief.md | hivemind chat --persona ghostwriter
