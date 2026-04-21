@@ -1,0 +1,21 @@
+{
+  "name": "hivemind",
+  "version": "0.1.0",
+  "description": "Claude Code skill for Hivemind — Myosin's RAG-powered marketing AI. Consult specialist personas (ghostwriter, strategist, GTM architect) and search a curated marketing knowledge base.",
+  "author": {
+    "name": "Myosin",
+    "email": "team@myosin.xyz"
+  },
+  "homepage": "https://github.com/Myosin-xyz/hivemind-skill",
+  "repository": "https://github.com/Myosin-xyz/hivemind-skill",
+  "license": "MIT",
+  "keywords": [
+    "hivemind",
+    "myosin",
+    "marketing",
+    "copywriting",
+    "gtm",
+    "rag",
+    "ai-personas"
+  ]
+}

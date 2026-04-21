@@ -1,0 +1,24 @@
+{
+  "name": "hivemind",
+  "owner": {
+    "name": "Myosin",
+    "email": "team@myosin.xyz",
+    "url": "https://myosin.xyz"
+  },
+  "description": "Marketplace for the Hivemind Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "hivemind",
+      "source": "./",
+      "description": "Consult Hivemind's AI personas (ghostwriter, strategist, GTM architect) and search a curated marketing knowledge base. Also exposes the Projects API.",
+      "version": "0.1.0",
+      "keywords": [
+        "hivemind",
+        "marketing",
+        "copywriting",
+        "gtm",
+        "rag"
+      ]
+    }
+  ]
+}
