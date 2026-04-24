@@ -8,7 +8,7 @@
       "name": "hivemind",
       "source": {
         "source": "local",
-        "path": "./skills/hivemind"
+        "path": "./skills"
       },
       "policy": {
         "installation": "AVAILABLE",

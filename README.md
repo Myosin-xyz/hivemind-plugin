@@ -34,7 +34,7 @@ To update later: `/plugin update hivemind`. To remove: `/plugin uninstall hivemi
 
 ## Install as a Codex Plugin
 
-This repo also includes Codex plugin metadata in `skills/hivemind/.codex-plugin/plugin.json` and Codex marketplace metadata in `.agents/plugins/marketplace.json`, using the same shared skill under `skills/hivemind/`.
+This repo also includes Codex plugin metadata in `skills/.codex-plugin/plugin.json` and Codex marketplace metadata in `.agents/plugins/marketplace.json`, using the same shared skill under `skills/hivemind/`.
 
 Add the marketplace:
 
@@ -126,9 +126,9 @@ hivemind-plugin/
 ├── config/
 │   └── env.example                 Template credentials file
 └── skills/
+    ├── .codex-plugin/
+    │   └── plugin.json             Codex plugin manifest
     └── hivemind/                   The shared skill Claude Code and Codex load
-        ├── .codex-plugin/
-        │   └── plugin.json         Codex plugin manifest
         ├── SKILL.md                Skill definition with YAML frontmatter
         ├── references/             On-demand reference docs
         │   ├── api-reference.md    Full API spec

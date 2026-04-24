@@ -98,7 +98,7 @@ Claude should invoke the `hivemind` script via the plugin and return a headline.
 
 ## Codex Plugin Install
 
-This repo ships both Codex plugin metadata at `skills/hivemind/.codex-plugin/plugin.json` and Codex marketplace metadata at `.agents/plugins/marketplace.json`.
+This repo ships both Codex plugin metadata at `skills/.codex-plugin/plugin.json` and Codex marketplace metadata at `.agents/plugins/marketplace.json`.
 
 Add the marketplace:
 
