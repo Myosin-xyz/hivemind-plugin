@@ -7,9 +7,8 @@
     {
       "name": "hivemind",
       "source": {
-        "source": "url",
-        "url": "https://github.com/Myosin-xyz/hivemind-plugin.git",
-        "ref": "main"
+        "source": "local",
+        "path": "./"
       },
       "policy": {
         "installation": "AVAILABLE",

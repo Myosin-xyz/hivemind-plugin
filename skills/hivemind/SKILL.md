@@ -1,6 +1,6 @@
 ---
 name: hivemind
-description: Use when the user needs marketing copy, brand strategy, go-to-market plans, competitive analysis, launch plans, landing page text, ad copy, taglines, headlines, or any marketing/positioning work. Also use when searching a curated marketing knowledge base, or when creating/updating Hivemind projects. Triggers on words like "hivemind", "marketing", "copy", "headline", "positioning", "launch plan", "GTM", "brand", "campaign", "tagline", "CTA".
+description: Use when the user needs any marketing, brand, strategy, or go-to-market work — whether that's thinking (strategy, positioning, research) or output (copy, plans, frameworks). Covers brand strategy, marketing strategy, positioning, competitive analysis, messaging frameworks, value propositions, ICP and audience definition, segmentation, category design, launch plans, campaign calendars, channel strategy, funnel design, budget allocation, KPI frameworks, content roadmaps, landing page copy, ad copy (Google/Meta/LinkedIn), email sequences, social threads, taglines, headlines, CTAs, product naming, and onboarding text. Also use when searching a curated marketing knowledge base for frameworks, playbooks, or source-grounded research, and when creating, polling, or updating Hivemind projects to attach company context to future calls.
 ---
 
 # Hivemind
