@@ -93,7 +93,7 @@ hivemind chat --stream "Give me a go-to-market plan for a B2B SaaS product"
 
 # Knowledge search — RAG without the LLM layer
 hivemind-search --threshold 0.5 --max 10 "product launch best practices"
-hivemind-search --persona genius-strategist --rerank "competitive positioning frameworks"
+hivemind-search --persona genius-strategist "competitive positioning frameworks"
 
 # Projects — create, poll, update
 hivemind-project create --url https://example.com --name "My Project"
