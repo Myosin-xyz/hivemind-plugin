@@ -5,9 +5,9 @@
 # ~/.config/hivemind/env so you can call the Hivemind API from any terminal.
 #
 # You do NOT need to run this if you installed the plugin via:
-#   /plugin marketplace add Myosin-xyz/hivemind-skill
+#   /plugin marketplace add Myosin-xyz/hivemind-plugin
 #   /plugin install hivemind@hivemind
-# The plugin loader invokes the scripts from inside the plugin directory.
+# Claude Code or Codex can invoke the shared scripts from inside the plugin directory.
 #
 # Idempotent; safe to re-run.
 
@@ -92,9 +92,9 @@ fi
 
 cat <<EOF
 To use Hivemind inside Claude Code, install it as a plugin instead:
-  /plugin marketplace add Myosin-xyz/hivemind-skill
+  /plugin marketplace add Myosin-xyz/hivemind-plugin
   /plugin install hivemind@hivemind
 
-Claude will auto-invoke the skill via the plugin — the standalone CLI you
-just installed is only needed for non-Claude use.
+Claude Code or Codex can auto-invoke the shared skill via the plugin — the
+standalone CLI you just installed is only needed for direct terminal use.
 EOF

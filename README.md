@@ -1,12 +1,12 @@
 # Hivemind Plugin
 
-A Claude Code plugin and CLI for [Hivemind](https://myosin.xyz/hivemind) — Myosin's RAG-powered marketing AI. Lets agents (and humans) call the Chat, Knowledge Search, and Projects APIs.
+A Claude Code plugin, Codex plugin, and CLI for [Hivemind](https://myosin.xyz/hivemind) — Myosin's RAG-powered marketing AI. Lets agents (and humans) call the Chat, Knowledge Search, and Projects APIs.
 
 - **Chat API** — consult Hivemind's AI personas (ghostwriter, strategist, GTM architect, general assistant)
 - **Knowledge API** — semantic search over a curated marketing knowledge base with persona filtering, metadata boosting, and LLM reranking
 - **Projects API** — create, poll, and update Hivemind projects to attach as context
 
-## Install as a Claude Code Plugin (Recommended)
+## Install as a Claude Code Plugin
 
 Inside Claude Code:
 
@@ -32,17 +32,34 @@ Don't have a key? Request one at **[https://myosin.typeform.com/api-request](htt
 
 To update later: `/plugin update hivemind`. To remove: `/plugin uninstall hivemind`.
 
+## Install as a Codex Plugin
+
+This repo also includes Codex plugin metadata in `.codex-plugin/plugin.json`, using the same shared skill under `skills/hivemind/`.
+
+For local Codex setups, point Codex at this repo as a local plugin, or install the `skills/hivemind` skill from the repo if you prefer a skill-only setup. The shared skill content is the same across Claude Code and Codex.
+
+Before first use, create the credentials file:
+
+```bash
+mkdir -p ~/.config/hivemind
+cat > ~/.config/hivemind/env <<'EOF'
+HIVEMIND_API_KEY=hm_k_your_key_here
+HIVEMIND_PROJECT_ID=
+EOF
+chmod 600 ~/.config/hivemind/env
+```
+
 ## Install as Standalone CLI (Optional)
 
-If you also want to call the APIs from a terminal, cron job, or non-Claude script:
+If you also want to call the APIs from a terminal, cron job, or non-agent script:
 
 ```bash
 git clone https://github.com/Myosin-xyz/hivemind-plugin.git
-cd hivemind-skill
+cd hivemind-plugin
 ./install.sh
 ```
 
-The installer copies `hivemind`, `hivemind-search`, and `hivemind-project` into `~/.local/bin/` and scaffolds `~/.config/hivemind/env`. Plugin users don't need this step — Claude invokes the scripts from inside the plugin.
+The installer copies `hivemind`, `hivemind-search`, and `hivemind-project` into `~/.local/bin/` and scaffolds `~/.config/hivemind/env`. Plugin users don't need this step — Claude Code and Codex can invoke the shared scripts from inside the plugin checkout.
 
 See [SETUP.md](SETUP.md) for the detailed walkthrough, dependency list, and troubleshooting.
 
@@ -81,7 +98,9 @@ Run any command with `--help` for full flag reference.
 ## Repository Layout
 
 ```
-hivemind-skill/
+hivemind-plugin/
+├── .codex-plugin/
+│   └── plugin.json                 Codex plugin manifest
 ├── .claude-plugin/
 │   ├── plugin.json                 Plugin manifest (id, version, author)
 │   └── marketplace.json            Marketplace entry so /plugin can add this repo
@@ -92,14 +111,14 @@ hivemind-skill/
 ├── config/
 │   └── env.example                 Template credentials file
 └── skills/
-    └── hivemind/                   The skill Claude loads
+    └── hivemind/                   The shared skill Claude Code and Codex load
         ├── SKILL.md                Skill definition with YAML frontmatter
         ├── references/             On-demand reference docs
         │   ├── api-reference.md    Full API spec
         │   ├── personas.md         Persona decision guide
         │   ├── errors.md           Error codes + remediation
         │   └── examples.md         End-to-end examples
-        └── scripts/                Bash tools (invoked via ${CLAUDE_PLUGIN_ROOT})
+        └── scripts/                Bash tools shared by Claude Code, Codex, and the standalone CLI
             ├── hivemind            Chat CLI
             ├── hivemind-search     Knowledge search CLI
             └── hivemind-project    Projects API CLI
@@ -122,5 +141,6 @@ MIT — see [LICENSE](LICENSE).
 
 - [Request an API key](https://myosin.typeform.com/api-request)
 - [Hivemind app](https://myosin.xyz/hivemind)
-- [Upstream API docs](https://myosinxyz.notion.site/Hivemind-API-3124252a813a80c9bdfff9bd449a320d?source=copy_link)
+- [API docs](https://hivemind.myosin.xyz/api-docs)
+- [Plain-text API docs](https://hivemind.myosin.xyz/api-docs.md)
 - [Claude Code plugin docs](https://code.claude.com/docs/en/plugins.md)

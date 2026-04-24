@@ -6,8 +6,8 @@
     "name": "Myosin",
     "email": "team@myosin.xyz"
   },
-  "homepage": "https://github.com/Myosin-xyz/hivemind-skill",
-  "repository": "https://github.com/Myosin-xyz/hivemind-skill",
+  "homepage": "https://github.com/Myosin-xyz/hivemind-plugin",
+  "repository": "https://github.com/Myosin-xyz/hivemind-plugin",
   "license": "MIT",
   "keywords": [
     "hivemind",

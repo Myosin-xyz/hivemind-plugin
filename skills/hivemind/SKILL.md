@@ -17,15 +17,15 @@ All three scripts auto-load credentials from `~/.config/hivemind/env` (chmod 600
 
 ## Script paths
 
-The scripts live inside this plugin. Invoke them at:
+The scripts live inside this plugin. Resolve them relative to this skill directory:
 
-| Tool | Path |
+| Tool | Relative path |
 |---|---|
-| `hivemind` | `${CLAUDE_PLUGIN_ROOT}/skills/hivemind/scripts/hivemind` |
-| `hivemind-search` | `${CLAUDE_PLUGIN_ROOT}/skills/hivemind/scripts/hivemind-search` |
-| `hivemind-project` | `${CLAUDE_PLUGIN_ROOT}/skills/hivemind/scripts/hivemind-project` |
+| `hivemind` | `scripts/hivemind` |
+| `hivemind-search` | `scripts/hivemind-search` |
+| `hivemind-project` | `scripts/hivemind-project` |
 
-Claude substitutes `${CLAUDE_PLUGIN_ROOT}` at runtime. Examples below use short names (`hivemind`, `hivemind-search`, `hivemind-project`) for readability — expand to the full path when actually invoking. If the user also installed the CLIs on their `PATH` (via the repo's `install.sh`), the short names work directly in a terminal.
+Claude Code and Codex may install the plugin in different locations, so avoid relying on a Claude-specific environment variable when resolving paths. Examples below use short names (`hivemind`, `hivemind-search`, `hivemind-project`) for readability. If the user also installed the CLIs on their `PATH` via `install.sh`, the short names work directly in a terminal.
 
 ## Picking a Persona
 

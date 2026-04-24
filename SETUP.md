@@ -1,9 +1,10 @@
 # Setup
 
-Two install paths. Pick the one that matches how you'll use Hivemind.
+Three install paths. Pick the one that matches how you'll use Hivemind.
 
 - **[Plugin install](#plugin-install)** — recommended for Claude Code users. Claude auto-invokes the skill; no PATH changes, no script copies.
-- **[Standalone CLI install](#standalone-cli-install)** — for humans using the CLIs from a terminal / cron / scripts outside Claude. Optional even if you installed the plugin.
+- **[Codex plugin install](#codex-plugin-install)** — use the same shared skill from Codex via the repo's `.codex-plugin/plugin.json`.
+- **[Standalone CLI install](#standalone-cli-install)** — for humans using the CLIs from a terminal / cron / scripts outside agent runtimes. Optional even if you installed the plugin.
 
 Both paths need the same credentials file at `~/.config/hivemind/env`.
 
@@ -57,7 +58,7 @@ jq --version
 Inside Claude Code:
 
 ```
-/plugin marketplace add Myosin-xyz/hivemind-skill
+/plugin marketplace add Myosin-xyz/hivemind-plugin
 /plugin install hivemind@hivemind
 ```
 
@@ -95,15 +96,34 @@ Claude should invoke the `hivemind` script via the plugin and return a headline.
 
 ---
 
+## Codex Plugin Install
+
+This repo also ships Codex plugin metadata at `.codex-plugin/plugin.json`.
+
+Use the repo as a local Codex plugin, or install the shared `skills/hivemind` skill from the repo if you prefer a skill-only setup. The shared skill contents are the same ones Claude Code uses, but without relying on Claude-only packaging.
+
+Create the same credentials file used by the Claude and CLI flows:
+
+```bash
+mkdir -p ~/.config/hivemind
+cat > ~/.config/hivemind/env <<'EOF'
+HIVEMIND_API_KEY=hm_k_your_key_here
+HIVEMIND_PROJECT_ID=
+EOF
+chmod 600 ~/.config/hivemind/env
+```
+
+Once installed in Codex, the skill can invoke the shared scripts from `skills/hivemind/scripts/`.
+
 ## Standalone CLI Install
 
-Skip this section if you only plan to use Hivemind through Claude.
+Skip this section if you only plan to use Hivemind through Claude Code or Codex.
 
 This installs the three CLIs onto your `PATH` so you can run them from any terminal.
 
 ```bash
-git clone https://github.com/Myosin-xyz/hivemind-skill.git
-cd hivemind-skill
+git clone https://github.com/Myosin-xyz/hivemind-plugin.git
+cd hivemind-plugin
 ./install.sh
 ```
 
@@ -165,7 +185,7 @@ You hit your monthly cap. Wait until the 1st of next UTC month or request a cap 
 
 ### `command not found: hivemind` (CLI install only)
 
-`~/.local/bin` isn't on your `PATH`. Fix with the export shown above. This does not affect plugin users — Claude invokes the scripts by absolute path via `${CLAUDE_PLUGIN_ROOT}`.
+`~/.local/bin` isn't on your `PATH`. Fix with the export shown above. This does not affect plugin users — Claude Code and Codex can invoke the shared scripts from inside the plugin checkout.
 
 ### Claude doesn't invoke the skill
 
@@ -177,7 +197,7 @@ You hit your monthly cap. Wait until the 1st of next UTC month or request a cap 
 ### Plugin install fails
 
 - Make sure you're on a recent Claude Code release that supports `/plugin marketplace add <owner>/<repo>` shorthand.
-- If the shorthand fails, try the full git URL: `/plugin marketplace add https://github.com/Myosin-xyz/hivemind-skill.git`
+- If the shorthand fails, try the full git URL: `/plugin marketplace add https://github.com/Myosin-xyz/hivemind-plugin.git`
 - The repo must be public (or you must be authenticated with gh).
 
 ---
