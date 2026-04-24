@@ -2,7 +2,7 @@
   "name": "hivemind",
   "owner": {
     "name": "Myosin",
-    "email": "team@myosin.xyz",
+    "email": "product@myosin.xyz",
     "url": "https://myosin.xyz"
   },
   "description": "Marketplace for the Hivemind Claude Code plugin.",
@@ -14,10 +14,16 @@
       "version": "0.1.0",
       "keywords": [
         "hivemind",
-        "marketing",
+        "marketing-strategy",
+        "product-marketing",
         "copywriting",
-        "gtm",
-        "rag"
+        "brand-positioning",
+        "go-to-market",
+        "campaign-planning",
+        "competitive-analysis",
+        "knowledge-search",
+        "project-context",
+        "ai-personas"
       ]
     }
   ]

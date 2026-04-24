@@ -34,9 +34,23 @@ To update later: `/plugin update hivemind`. To remove: `/plugin uninstall hivemi
 
 ## Install as a Codex Plugin
 
-This repo also includes Codex plugin metadata in `.codex-plugin/plugin.json`, using the same shared skill under `skills/hivemind/`.
+This repo also includes Codex plugin metadata in `skills/hivemind/.codex-plugin/plugin.json` and Codex marketplace metadata in `.agents/plugins/marketplace.json`, using the same shared skill under `skills/hivemind/`.
 
-For local Codex setups, point Codex at this repo as a local plugin, or install the `skills/hivemind` skill from the repo if you prefer a skill-only setup. The shared skill content is the same across Claude Code and Codex.
+Add the marketplace:
+
+```bash
+codex marketplace add Myosin-xyz/hivemind-plugin
+```
+
+For local development, use the local checkout instead:
+
+```bash
+codex marketplace add /path/to/hivemind-plugin
+```
+
+Then restart Codex, open Plugins, and install or enable **Hivemind** from the Hivemind marketplace. Codex does not currently expose a Claude-style `plugin install` CLI command; installation happens from the Codex Plugins UI after the marketplace is added.
+
+The shared skill content is the same across Claude Code and Codex. If you only want the process instructions without plugin packaging, install the `skills/hivemind` skill from this repo as a skill-only setup.
 
 Before first use, create the credentials file:
 
@@ -99,8 +113,9 @@ Run any command with `--help` for full flag reference.
 
 ```
 hivemind-plugin/
-├── .codex-plugin/
-│   └── plugin.json                 Codex plugin manifest
+├── .agents/
+│   └── plugins/
+│       └── marketplace.json        Codex marketplace entry for codex marketplace add
 ├── .claude-plugin/
 │   ├── plugin.json                 Plugin manifest (id, version, author)
 │   └── marketplace.json            Marketplace entry so /plugin can add this repo
@@ -112,6 +127,8 @@ hivemind-plugin/
 │   └── env.example                 Template credentials file
 └── skills/
     └── hivemind/                   The shared skill Claude Code and Codex load
+        ├── .codex-plugin/
+        │   └── plugin.json         Codex plugin manifest
         ├── SKILL.md                Skill definition with YAML frontmatter
         ├── references/             On-demand reference docs
         │   ├── api-reference.md    Full API spec

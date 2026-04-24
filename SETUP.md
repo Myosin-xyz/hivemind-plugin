@@ -3,7 +3,7 @@
 Three install paths. Pick the one that matches how you'll use Hivemind.
 
 - **[Plugin install](#plugin-install)** — recommended for Claude Code users. Claude auto-invokes the skill; no PATH changes, no script copies.
-- **[Codex plugin install](#codex-plugin-install)** — use the same shared skill from Codex via the repo's `.codex-plugin/plugin.json`.
+- **[Codex plugin install](#codex-plugin-install)** — add the repo as a Codex marketplace, then install Hivemind from Codex's Plugins UI.
 - **[Standalone CLI install](#standalone-cli-install)** — for humans using the CLIs from a terminal / cron / scripts outside agent runtimes. Optional even if you installed the plugin.
 
 Both paths need the same credentials file at `~/.config/hivemind/env`.
@@ -98,9 +98,23 @@ Claude should invoke the `hivemind` script via the plugin and return a headline.
 
 ## Codex Plugin Install
 
-This repo also ships Codex plugin metadata at `.codex-plugin/plugin.json`.
+This repo ships both Codex plugin metadata at `skills/hivemind/.codex-plugin/plugin.json` and Codex marketplace metadata at `.agents/plugins/marketplace.json`.
 
-Use the repo as a local Codex plugin, or install the shared `skills/hivemind` skill from the repo if you prefer a skill-only setup. The shared skill contents are the same ones Claude Code uses, but without relying on Claude-only packaging.
+Add the marketplace:
+
+```bash
+codex marketplace add Myosin-xyz/hivemind-plugin
+```
+
+For local development, add your checkout instead:
+
+```bash
+codex marketplace add /path/to/hivemind-plugin
+```
+
+Restart Codex, open Plugins, and install or enable **Hivemind** from the Hivemind marketplace. Codex's CLI currently adds marketplaces; it does not expose a Claude-style `plugin install` subcommand.
+
+The shared skill contents are the same ones Claude Code uses, but without relying on Claude-only packaging. If you prefer a skill-only setup, install `skills/hivemind` from this repo as a Codex skill.
 
 Create the same credentials file used by the Claude and CLI flows:
 
