@@ -8,7 +8,7 @@
       "name": "hivemind",
       "source": {
         "source": "local",
-        "path": "./"
+        "path": "./plugins/hivemind"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -98,7 +98,7 @@ Claude should invoke the `hivemind` script via the plugin and return a headline.
 
 ## Codex Plugin Install
 
-This repo ships Codex plugin metadata at `.codex-plugin/plugin.json` and Codex marketplace metadata at `.agents/plugins/marketplace.json`. Codex installs the repository root as the plugin package and discovers the shared skill under `skills/hivemind/`.
+This repo ships Codex marketplace metadata at `.agents/plugins/marketplace.json`. Codex installs the plugin package from `plugins/hivemind/`, whose `.codex-plugin/plugin.json` discovers skills from `plugins/hivemind/skills/`.
 
 Add the marketplace:
 
@@ -114,7 +114,7 @@ codex plugin marketplace add /path/to/hivemind-plugin
 
 Restart Codex, run `/plugins`, switch to the Hivemind marketplace tab, and choose **Install plugin** for **Hivemind**. Codex installs plugins from the plugin browser after the marketplace is added.
 
-The shared skill contents are the same ones Claude Code uses, but without relying on Claude-only packaging. If you prefer a skill-only setup, install the root `skills/hivemind` from this repo as a Codex skill.
+The Codex skill contents mirror the ones Claude Code uses, but without relying on Claude-only packaging. If you prefer a skill-only setup, install the root `skills/hivemind` from this repo as a Codex skill.
 
 Create the same credentials file used by the Claude and CLI flows:
 
@@ -127,7 +127,7 @@ EOF
 chmod 600 ~/.config/hivemind/env
 ```
 
-Once installed in Codex, the skill can invoke the shared scripts from `skills/hivemind/scripts/`.
+Once installed in Codex, the skill can invoke its packaged scripts from `plugins/hivemind/skills/hivemind/scripts/`.
 
 ## Standalone CLI Install
 

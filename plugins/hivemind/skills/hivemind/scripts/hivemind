@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+# hivemind — CLI for the Hivemind Chat API (POST /api/v1/chat).
+#
+# Sends a prompt to a Hivemind AI persona and prints the response.
+# Supports auto-intent classification, forced personas, streaming,
+# project context, and persistent conversations.
+#
+# Docs: see references/api-reference.md in the skill package.
+set -euo pipefail
+
+SELF="$(basename "$0")"
+ENV_FILE="${HIVEMIND_ENV_FILE:-$HOME/.config/hivemind/env}"
+DEFAULT_API_URL="https://hivemind.myosin.xyz"
+DEFAULT_TIMEOUT=120
+
+usage() {
+  cat <<'USAGE'
+Usage: hivemind chat [options] [prompt]
+       hivemind [options] [prompt]        (chat is the default subcommand)
+
+Sends a prompt to Hivemind's chat API and prints the response.
+
+Options:
+  --persona ID        Force a specific persona (skips auto-intent classification).
+                      Accepts full IDs or short aliases:
+                        ghostwriter                    - copy, headlines, ad copy
+                        strategist | genius-strategist - positioning, strategy
+                        gtm        | gtm-architect     - launch plans, channel strategy
+                        general    | general-assistant - general queries
+  --stream            Stream tokens as they arrive (prints plain text to stdout).
+  --project UUID      Attach project context; overrides HIVEMIND_PROJECT_ID.
+  --no-project        Ignore HIVEMIND_PROJECT_ID from the env file and send
+                      the chat unscoped (the persona won't be constrained to
+                      a project's context).
+  --start-conversation  Start a new persistent conversation; requires --project.
+                        Returns conversation_id + message_id in --json output.
+  --conversation-id UUID
+                        Append to an existing conversation (created via this API).
+  --json              Print the full API JSON response instead of just .data.response.
+  --timeout N         Request timeout in seconds (default: 120).
+  --url URL           Override API host (default: $HIVEMIND_API_URL or the builtin).
+  -h, --help          Show this help.
+
+Input:
+  Prompt as positional argument(s), or piped via stdin. Max 8000 chars.
+
+Examples:
+  hivemind chat "Write 3 headlines for a B2B SaaS landing page targeting CTOs"
+  hivemind chat --persona strategist "Analyze positioning vs Vercel and Netlify"
+  hivemind chat --stream --persona gtm "Build a Q2 launch plan for an API product"
+  echo "detailed context..." | hivemind chat --persona ghostwriter --json
+
+Exit codes:
+  0  success
+  1  usage error
+  2  API error (network, auth, validation, rate limit, server)
+USAGE
+}
+
+die() { echo "Error: $*" >&2; exit "${2:-1}"; }
+
+# --- Short-circuit --help before credential loading ---
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) usage; exit 0 ;;
+  esac
+done
+
+# --- Load credentials ---
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Error: Credentials file not found at $ENV_FILE" >&2
+  echo "Create it by running the installer or by hand:" >&2
+  echo "  mkdir -p ~/.config/hivemind && \$EDITOR ~/.config/hivemind/env" >&2
+  echo "Request an API key at https://myosin.typeform.com/api-request" >&2
+  exit 1
+fi
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+
+API_KEY="${HIVEMIND_API_KEY:-}"
+[[ -n "$API_KEY" ]] || die "HIVEMIND_API_KEY not set in $ENV_FILE"
+
+API_URL="${HIVEMIND_API_URL:-$DEFAULT_API_URL}"
+DEFAULT_PROJECT="${HIVEMIND_PROJECT_ID:-}"
+
+# --- Parse args ---
+
+# Accept `hivemind chat ...` or `hivemind ...` (chat is default).
+if [[ "${1:-}" == "chat" ]]; then shift; fi
+
+PERSONA=""
+STREAM="false"
+PROJECT="$DEFAULT_PROJECT"
+START_CONVO="false"
+CONVO_ID=""
+OUTPUT_MODE="text"
+TIMEOUT="$DEFAULT_TIMEOUT"
+PROMPT_ARGS=()
+
+normalize_persona() {
+  case "$1" in
+    ghostwriter)       echo "ghostwriter" ;;
+    strategist|genius-strategist) echo "genius-strategist" ;;
+    gtm|gtm-architect) echo "gtm-architect" ;;
+    general|general-assistant) echo "general-assistant" ;;
+    *) die "Unknown persona '$1'. Use: ghostwriter, strategist, gtm, general" ;;
+  esac
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --persona)      [[ -n "${2:-}" ]] || die "--persona requires a value"; PERSONA="$(normalize_persona "$2")"; shift 2 ;;
+    --stream)       STREAM="true"; shift ;;
+    --project)      [[ -n "${2:-}" ]] || die "--project requires a value"; PROJECT="$2"; shift 2 ;;
+    --no-project)   PROJECT=""; shift ;;
+    --start-conversation) START_CONVO="true"; shift ;;
+    --conversation-id) [[ -n "${2:-}" ]] || die "--conversation-id requires a value"; CONVO_ID="$2"; shift 2 ;;
+    --json)         OUTPUT_MODE="json"; shift ;;
+    --timeout)      [[ -n "${2:-}" ]] || die "--timeout requires a value"; TIMEOUT="$2"; shift 2 ;;
+    --url)          [[ -n "${2:-}" ]] || die "--url requires a value"; API_URL="$2"; shift 2 ;;
+    -h|--help)      usage; exit 0 ;;
+    --)             shift; PROMPT_ARGS+=("$@"); break ;;
+    -*)             die "Unknown option '$1'" ;;
+    *)              PROMPT_ARGS+=("$1"); shift ;;
+  esac
+done
+
+# --- Collect prompt ---
+
+if [[ ${#PROMPT_ARGS[@]} -gt 0 ]]; then
+  PROMPT="${PROMPT_ARGS[*]}"
+elif [[ ! -t 0 ]]; then
+  PROMPT="$(cat)"
+else
+  usage >&2
+  exit 1
+fi
+
+[[ -n "$PROMPT" ]] || die "Empty prompt"
+
+if [[ "$START_CONVO" == "true" && -z "$PROJECT" ]]; then
+  die "--start-conversation requires --project or HIVEMIND_PROJECT_ID"
+fi
+if [[ "$START_CONVO" == "true" && -n "$CONVO_ID" ]]; then
+  die "Cannot combine --start-conversation with --conversation-id"
+fi
+
+# --- Build payload ---
+
+PAYLOAD="$(jq -n \
+  --arg text "$PROMPT" \
+  --argjson stream "$STREAM" \
+  --arg persona "$PERSONA" \
+  --arg projectId "$PROJECT" \
+  --argjson startConversation "$START_CONVO" \
+  --arg conversationId "$CONVO_ID" \
+  '{text: $text, stream: $stream}
+    + (if $persona != ""        then {persona: $persona}                 else {} end)
+    + (if $projectId != ""      then {projectId: $projectId}             else {} end)
+    + (if $startConversation    then {startConversation: true}           else {} end)
+    + (if $conversationId != "" then {conversationId: $conversationId}   else {} end)
+  '
+)"
+
+# --- Send request ---
+
+URL="${API_URL%/}/api/v1/chat"
+
+if [[ "$STREAM" == "true" ]]; then
+  # SSE data stream (Vercel AI SDK protocol). Parse frames and print content.
+  curl -sS -N --max-time "$TIMEOUT" \
+    -X POST "$URL" \
+    -H "x-api-key: $API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD" \
+  | while IFS= read -r line; do
+      case "$line" in
+        0:*)
+          # Payload is a JSON-encoded string; decode with jq.
+          decoded=$(printf '%s' "${line#0:}" | jq -r . 2>/dev/null || true)
+          printf '%s' "$decoded"
+          ;;
+        d:*)
+          printf '\n'
+          ;;
+        2:*)
+          # Metadata frames — silently discarded in text mode.
+          ;;
+      esac
+    done
+  exit "${PIPESTATUS[0]}"
+fi
+
+RESPONSE="$(curl -sS -w '\n__HTTP_STATUS__:%{http_code}' --max-time "$TIMEOUT" \
+  -X POST "$URL" \
+  -H "x-api-key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD")" || die "API request failed (timeout or network error)" 2
+
+HTTP_CODE="$(printf '%s' "$RESPONSE" | sed -n 's/^__HTTP_STATUS__:\([0-9]*\)$/\1/p' | tail -n 1)"
+BODY="$(printf '%s' "$RESPONSE" | sed '$d')"
+
+if [[ "$HTTP_CODE" != "200" ]]; then
+  ERR_CODE="$(jq -r '.error // empty' <<<"$BODY" 2>/dev/null)"
+  ERR_MSG="$(jq -r '.message // empty' <<<"$BODY" 2>/dev/null)"
+  echo "Error: HTTP $HTTP_CODE${ERR_CODE:+ ($ERR_CODE)}${ERR_MSG:+: $ERR_MSG}" >&2
+  jq . <<<"$BODY" >&2 2>/dev/null || echo "$BODY" >&2
+  exit 2
+fi
+
+if [[ "$OUTPUT_MODE" == "json" ]]; then
+  jq . <<<"$BODY"
+else
+  jq -r '.data.response // empty' <<<"$BODY"
+fi

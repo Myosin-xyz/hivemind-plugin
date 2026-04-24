@@ -1,0 +1,311 @@
+#!/usr/bin/env bash
+# hivemind-project — CLI for the Hivemind Projects API (/api/v1/projects).
+#
+# Subcommands: create | get | update | wait
+# All requests require a user-attributed API key.
+set -euo pipefail
+
+SELF="$(basename "$0")"
+ENV_FILE="${HIVEMIND_ENV_FILE:-$HOME/.config/hivemind/env}"
+DEFAULT_API_URL="https://hivemind.myosin.xyz"
+DEFAULT_TIMEOUT=60
+
+usage() {
+  cat <<'USAGE'
+Usage: hivemind-project <subcommand> [options]
+
+Subcommands:
+  create [options]             Create a new project (returns immediately; enrichment runs async).
+  get <id> [--json]            Fetch a project by UUID.
+  update <id> [options]        PATCH a project's fields.
+  wait <id> [--timeout N]      Poll a project until enrichment_status is ready|failed.
+
+Create / update options:
+  --url URL                    website_url (required for create unless --description given)
+  --name NAME                  project_name
+  --description TEXT           description (1-5000 chars)
+  --type "a,b,c"               project_type (1-4 items, 2-50 chars each, comma-separated)
+  --stage STAGE                idea | pre-launch | launch | growth | scale | n/a
+  --chains "a,b,c"             blockchain networks (max 10)
+  --audiences "a,b,c"          target audiences (max 5)
+  --channels "a,b,c"           marketing channels (max 10)
+  --geographics "a,b,c"        target regions (max 5)
+  --objectives "a,b,c"         project goals
+  --legal TEXT                 legal_considerations
+  --social '{"twitter":"@x"}'  social_handles as JSON object
+
+Update-only:
+  --clear FIELD                Send null to clear a scalar field (e.g. legal).
+  --clear-list FIELD           Send [] to clear a list field (e.g. audiences).
+
+Common:
+  --json                       Print full JSON response (default: compact summary).
+  --timeout N                  HTTP timeout in seconds (default: 60).
+                               For `wait`, this is max total polling time.
+  --url-host URL               Override API host.
+  -h, --help                   Show this help.
+
+Examples:
+  hivemind-project create --url https://example.com --name "My Project" --stage launch
+  hivemind-project get a1b2c3d4-e5f6-7890-abcd-ef1234567890
+  hivemind-project update <id> --stage growth --audiences "developers,enterprise"
+  hivemind-project update <id> --clear legal_considerations
+  hivemind-project wait <id>
+
+Exit codes:
+  0 success   1 usage error   2 API error   3 wait timed out
+USAGE
+}
+
+die() { echo "Error: $*" >&2; exit "${2:-1}"; }
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help|help) usage; exit 0 ;;
+  esac
+done
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Error: Credentials file not found at $ENV_FILE" >&2
+  echo "Request a key at https://myosin.typeform.com/api-request" >&2
+  exit 1
+fi
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+
+API_KEY="${HIVEMIND_API_KEY:-}"
+[[ -n "$API_KEY" ]] || die "HIVEMIND_API_KEY not set in $ENV_FILE"
+
+API_URL="${HIVEMIND_API_URL:-$DEFAULT_API_URL}"
+
+SUB="${1:-}"
+[[ -n "$SUB" ]] || { usage >&2; exit 1; }
+shift || true
+
+# --- Shared state ---
+
+URL_VAL=""
+NAME=""
+DESCRIPTION=""
+TYPES=""
+STAGE=""
+CHAINS=""
+AUDIENCES=""
+CHANNELS=""
+GEOGRAPHICS=""
+OBJECTIVES=""
+LEGAL=""
+SOCIAL=""
+CLEAR_SCALAR=()
+CLEAR_LIST=()
+OUTPUT_MODE="compact"
+TIMEOUT="$DEFAULT_TIMEOUT"
+POSITIONAL=()
+
+set_str() { eval "$1=\"\$2\""; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --url)          [[ -n "${2:-}" ]] || die "$1 requires a value"; URL_VAL="$2"; shift 2 ;;
+    --name)         [[ -n "${2:-}" ]] || die "$1 requires a value"; NAME="$2"; shift 2 ;;
+    --description)  [[ -n "${2:-}" ]] || die "$1 requires a value"; DESCRIPTION="$2"; shift 2 ;;
+    --type)         [[ -n "${2:-}" ]] || die "$1 requires a value"; TYPES="$2"; shift 2 ;;
+    --stage)        [[ -n "${2:-}" ]] || die "$1 requires a value"; STAGE="$2"; shift 2 ;;
+    --chains)       [[ -n "${2:-}" ]] || die "$1 requires a value"; CHAINS="$2"; shift 2 ;;
+    --audiences)    [[ -n "${2:-}" ]] || die "$1 requires a value"; AUDIENCES="$2"; shift 2 ;;
+    --channels)     [[ -n "${2:-}" ]] || die "$1 requires a value"; CHANNELS="$2"; shift 2 ;;
+    --geographics)  [[ -n "${2:-}" ]] || die "$1 requires a value"; GEOGRAPHICS="$2"; shift 2 ;;
+    --objectives)   [[ -n "${2:-}" ]] || die "$1 requires a value"; OBJECTIVES="$2"; shift 2 ;;
+    --legal)        [[ -n "${2:-}" ]] || die "$1 requires a value"; LEGAL="$2"; shift 2 ;;
+    --social)       [[ -n "${2:-}" ]] || die "$1 requires a value"; SOCIAL="$2"; shift 2 ;;
+    --clear)        [[ -n "${2:-}" ]] || die "$1 requires a value"; CLEAR_SCALAR+=("$2"); shift 2 ;;
+    --clear-list)   [[ -n "${2:-}" ]] || die "$1 requires a value"; CLEAR_LIST+=("$2"); shift 2 ;;
+    --json)         OUTPUT_MODE="json"; shift ;;
+    --timeout)      [[ -n "${2:-}" ]] || die "$1 requires a value"; TIMEOUT="$2"; shift 2 ;;
+    --url-host)     [[ -n "${2:-}" ]] || die "$1 requires a value"; API_URL="$2"; shift 2 ;;
+    -h|--help)      usage; exit 0 ;;
+    --)             shift; POSITIONAL+=("$@"); break ;;
+    -*)             die "Unknown option '$1'" ;;
+    *)              POSITIONAL+=("$1"); shift ;;
+  esac
+done
+
+# Helper: split "a,b,c" into a JSON array (trimmed, non-empty only).
+csv_to_json_array() {
+  local csv="$1"
+  if [[ -z "$csv" ]]; then echo "null"; return; fi
+  jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))' <<<"$csv"
+}
+
+build_body() {
+  # Echoes a JSON object of all fields the user set. Used by create & update.
+  local body='{}'
+  local add_obj
+
+  if [[ -n "$URL_VAL" ]]; then
+    add_obj=$(jq -n --arg v "$URL_VAL" '{website_url: $v}')
+    body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+  fi
+  if [[ -n "$NAME" ]]; then
+    add_obj=$(jq -n --arg v "$NAME" '{project_name: $v}')
+    body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+  fi
+  if [[ -n "$DESCRIPTION" ]]; then
+    add_obj=$(jq -n --arg v "$DESCRIPTION" '{description: $v}')
+    body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+  fi
+  if [[ -n "$STAGE" ]]; then
+    add_obj=$(jq -n --arg v "$STAGE" '{stage: $v}')
+    body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+  fi
+  if [[ -n "$LEGAL" ]]; then
+    add_obj=$(jq -n --arg v "$LEGAL" '{legal_considerations: $v}')
+    body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+  fi
+
+  local pairs=( \
+    "project_type:$TYPES" \
+    "chains:$CHAINS" \
+    "audiences:$AUDIENCES" \
+    "channels:$CHANNELS" \
+    "geographics:$GEOGRAPHICS" \
+    "objectives:$OBJECTIVES" \
+  )
+  local pair field csv arr
+  for pair in "${pairs[@]}"; do
+    field="${pair%%:*}"
+    csv="${pair#*:}"
+    if [[ -n "$csv" ]]; then
+      arr=$(csv_to_json_array "$csv")
+      add_obj=$(jq -n --arg k "$field" --argjson v "$arr" '{($k): $v}')
+      body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+    fi
+  done
+
+  if [[ -n "$SOCIAL" ]]; then
+    if ! jq -e . <<<"$SOCIAL" >/dev/null 2>&1; then
+      die "--social must be valid JSON (got: $SOCIAL)"
+    fi
+    add_obj=$(jq -n --argjson v "$SOCIAL" '{social_handles: $v}')
+    body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+  fi
+
+  local f
+  for f in "${CLEAR_SCALAR[@]}"; do
+    add_obj=$(jq -n --arg k "$f" '{($k): null}')
+    body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+  done
+  for f in "${CLEAR_LIST[@]}"; do
+    add_obj=$(jq -n --arg k "$f" '{($k): []}')
+    body=$(jq -s add <<<"$body"$'\n'"$add_obj")
+  done
+
+  echo "$body"
+}
+
+request() {
+  local method="$1" path="$2" body="${3:-}"
+  local url="${API_URL%/}${path}"
+  local args=(-sS -w '\n__HTTP_STATUS__:%{http_code}' --max-time "$TIMEOUT"
+              -X "$method" "$url"
+              -H "x-api-key: $API_KEY"
+              -H "Content-Type: application/json")
+  [[ -n "$body" ]] && args+=(-d "$body")
+  curl "${args[@]}"
+}
+
+handle_response() {
+  local raw="$1"
+  local http_code body
+  http_code="$(printf '%s' "$raw" | sed -n 's/^__HTTP_STATUS__:\([0-9]*\)$/\1/p' | tail -n 1)"
+  body="$(printf '%s' "$raw" | sed '$d')"
+
+  if [[ ! "$http_code" =~ ^2 ]]; then
+    local err_code err_msg
+    err_code="$(jq -r '.error.code // .error // empty' <<<"$body" 2>/dev/null)"
+    err_msg="$(jq -r '.error.message // .message // empty' <<<"$body" 2>/dev/null)"
+    echo "Error: HTTP $http_code${err_code:+ ($err_code)}${err_msg:+: $err_msg}" >&2
+    jq . <<<"$body" >&2 2>/dev/null || echo "$body" >&2
+    exit 2
+  fi
+
+  if [[ "$OUTPUT_MODE" == "json" ]]; then
+    jq . <<<"$body"
+  else
+    jq -r '
+      .data as $d
+      | "id:                \($d.id)",
+        "name:              \($d.project_name // "-")",
+        "website_url:       \($d.website_url // "-")",
+        "enrichment_status: \($d.enrichment_status // "-")",
+        "stage:             \($d.stage // "-")",
+        "created_at:        \($d.created_at // "-")",
+        (if .already_existed then "already_existed:   true" else empty end)
+    ' <<<"$body"
+  fi
+}
+
+case "$SUB" in
+  create)
+    BODY=$(build_body)
+    HAS_URL=$(jq -r 'has("website_url")' <<<"$BODY")
+    HAS_DESC=$(jq -r 'has("description")' <<<"$BODY")
+    if [[ "$HAS_URL" == "false" && "$HAS_DESC" == "false" ]]; then
+      die "create requires --url or --description"
+    fi
+    handle_response "$(request POST /api/v1/projects "$BODY")"
+    ;;
+
+  get)
+    [[ ${#POSITIONAL[@]} -ge 1 ]] || die "get requires a project id"
+    PID="${POSITIONAL[0]}"
+    handle_response "$(request GET "/api/v1/projects/${PID}")"
+    ;;
+
+  update)
+    [[ ${#POSITIONAL[@]} -ge 1 ]] || die "update requires a project id"
+    PID="${POSITIONAL[0]}"
+    BODY=$(build_body)
+    if [[ "$(jq -r 'length' <<<"$BODY")" == "0" ]]; then
+      die "update requires at least one field change"
+    fi
+    handle_response "$(request PATCH "/api/v1/projects/${PID}" "$BODY")"
+    ;;
+
+  wait)
+    [[ ${#POSITIONAL[@]} -ge 1 ]] || die "wait requires a project id"
+    PID="${POSITIONAL[0]}"
+    WAIT_MAX="${TIMEOUT}"
+    if [[ "$WAIT_MAX" == "$DEFAULT_TIMEOUT" ]]; then WAIT_MAX=300; fi
+    START_TS=$(date +%s)
+    while true; do
+      RAW="$(request GET "/api/v1/projects/${PID}")"
+      HTTP_CODE="$(printf '%s' "$RAW" | sed -n 's/^__HTTP_STATUS__:\([0-9]*\)$/\1/p' | tail -n 1)"
+      BODY="$(printf '%s' "$RAW" | sed '$d')"
+      if [[ ! "$HTTP_CODE" =~ ^2 ]]; then
+        echo "Error: HTTP $HTTP_CODE during poll" >&2
+        jq . <<<"$BODY" >&2 2>/dev/null || echo "$BODY" >&2
+        exit 2
+      fi
+      STATUS="$(jq -r '.data.enrichment_status // "unknown"' <<<"$BODY")"
+      echo "status: $STATUS"
+      if [[ "$STATUS" == "ready" || "$STATUS" == "failed" ]]; then
+        if [[ "$OUTPUT_MODE" == "json" ]]; then jq . <<<"$BODY"; fi
+        [[ "$STATUS" == "ready" ]] && exit 0 || exit 2
+      fi
+      NOW=$(date +%s)
+      if (( NOW - START_TS > WAIT_MAX )); then
+        echo "Error: wait timed out after ${WAIT_MAX}s (last status: $STATUS)" >&2
+        exit 3
+      fi
+      sleep 5
+    done
+    ;;
+
+  -h|--help|help)
+    usage; exit 0 ;;
+
+  *)
+    die "Unknown subcommand '$SUB'. Use: create | get | update | wait"
+    ;;
+esac

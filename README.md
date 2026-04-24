@@ -34,7 +34,7 @@ To update later: `/plugin update hivemind`. To remove: `/plugin uninstall hivemi
 
 ## Install as a Codex Plugin
 
-This repo also includes Codex plugin metadata in `.codex-plugin/plugin.json` and Codex marketplace metadata in `.agents/plugins/marketplace.json`. Codex installs the repository root as the plugin package and discovers the shared skill under `skills/hivemind/`.
+This repo also includes Codex marketplace metadata in `.agents/plugins/marketplace.json`. Codex installs the plugin package from `plugins/hivemind/`, where `.codex-plugin/plugin.json` points skill discovery at `plugins/hivemind/skills/`.
 
 Add the marketplace:
 
@@ -50,7 +50,7 @@ codex plugin marketplace add /path/to/hivemind-plugin
 
 Then restart Codex, run `/plugins`, switch to the Hivemind marketplace tab, and choose **Install plugin** for **Hivemind**. Codex installs plugins from the plugin browser after the marketplace is added.
 
-The shared skill content is the same across Claude Code and Codex. If you only want the process instructions without plugin packaging, install the root `skills/hivemind` skill from this repo as a skill-only setup.
+The shared skill content is mirrored across Claude Code and Codex. If you only want the process instructions without plugin packaging, install the root `skills/hivemind` skill from this repo as a skill-only setup.
 
 Before first use, create the credentials file:
 
@@ -117,7 +117,7 @@ hivemind-plugin/
 │   └── plugins/
 │       └── marketplace.json        Codex marketplace entry for codex plugin marketplace add
 ├── .codex-plugin/
-│   └── plugin.json                 Codex plugin manifest
+│   └── plugin.json                 Legacy root Codex plugin manifest
 ├── .claude-plugin/
 │   ├── plugin.json                 Plugin manifest (id, version, author)
 │   └── marketplace.json            Marketplace entry so /plugin can add this repo
@@ -127,8 +127,16 @@ hivemind-plugin/
 ├── install.sh                      Optional standalone-CLI installer
 ├── config/
 │   └── env.example                 Template credentials file
+├── plugins/
+│   └── hivemind/                   Codex marketplace plugin package
+│       ├── .codex-plugin/
+│       │   └── plugin.json         Codex plugin manifest, with skills="./skills/"
+│       ├── config/
+│       │   └── env.example         Template credentials file
+│       └── skills/
+│           └── hivemind/           Discoverable Codex skill
 └── skills/
-    └── hivemind/                   Shared skill loaded by Claude Code and Codex
+    └── hivemind/                   Root skill used by Claude Code and standalone docs
         ├── SKILL.md                Skill definition with YAML frontmatter
         ├── references/             On-demand reference docs
         │   ├── api-reference.md    Full API spec

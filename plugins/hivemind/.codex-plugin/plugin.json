@@ -1,0 +1,47 @@
+{
+  "name": "hivemind",
+  "version": "0.1.0",
+  "description": "Codex and Claude-compatible skill for Hivemind, Myosin's RAG-powered marketing AI.",
+  "author": {
+    "name": "Myosin",
+    "email": "product@myosin.xyz",
+    "url": "https://myosin.xyz"
+  },
+  "homepage": "https://github.com/Myosin-xyz/hivemind-plugin",
+  "repository": "https://github.com/Myosin-xyz/hivemind-plugin",
+  "license": "MIT",
+  "keywords": [
+    "hivemind",
+    "marketing-strategy",
+    "product-marketing",
+    "copywriting",
+    "brand-positioning",
+    "go-to-market",
+    "campaign-planning",
+    "competitive-analysis",
+    "knowledge-search",
+    "project-context",
+    "ai-personas"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hivemind",
+    "shortDescription": "Marketing AI personas, knowledge search, and project tools.",
+    "longDescription": "Use Hivemind's specialist marketing personas, curated knowledge base, and project context APIs from Codex or Claude Code.",
+    "developerName": "Myosin",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://myosin.xyz/hivemind",
+    "privacyPolicyURL": "https://hivemind.myosin.xyz/privacy",
+    "termsOfServiceURL": "https://myosin.xyz/terms",
+    "defaultPrompt": [
+      "Write landing page headlines for a SaaS product.",
+      "Analyze our positioning against a competitor.",
+      "Search Hivemind for launch planning advice."
+    ],
+    "brandColor": "#E7FF6A"
+  }
+}

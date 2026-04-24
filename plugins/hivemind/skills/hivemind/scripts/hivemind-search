@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+# hivemind-search — CLI for the Hivemind Knowledge API (POST /api/knowledge/search).
+#
+# Runs a semantic search over Hivemind's curated marketing knowledge base.
+# Supports persona-targeted retrieval, metadata boosting, and LLM reranking.
+set -euo pipefail
+
+ENV_FILE="${HIVEMIND_ENV_FILE:-$HOME/.config/hivemind/env}"
+DEFAULT_API_URL="https://hivemind.myosin.xyz"
+DEFAULT_TIMEOUT=60
+
+usage() {
+  cat <<'USAGE'
+Usage: hivemind-search [options] [query]
+
+Semantic search over the Hivemind knowledge base.
+
+Options:
+  --threshold N             Minimum relevance score 0.0-1.0 (default: 0.4).
+                            0 = return anything, 1 = require exact match.
+  --max N                   Max results 1-25 (default: 10).
+  --persona ID              Persona-targeted retrieval (enables 2-pass search).
+                            Accepts aliases: ghostwriter, strategist, gtm, general.
+  --key-persona-results N   Max critical docs in pass 1 when --persona is set
+                            (default: 8).
+  --intent-filtering        Filter by document type based on query intent.
+  --objective-filtering     Filter by persona-specific objectives.
+  --no-metadata-boost       Disable metadata matching boost (default: enabled).
+  --no-rerank               Disable LLM-based reranking (default: enabled).
+  --project UUID            Gate access for project-scoped keys. Results are NOT
+                            filtered by project — corpus is global.
+  --no-project              Ignore HIVEMIND_PROJECT_ID from the env file and
+                            send the request without a projectId.
+  --json                    Print full API JSON. Default: one result per line
+                            as "score  title  --  doc_type/objective".
+  --timeout N               Request timeout seconds (default: 60).
+  --url URL                 Override API host.
+  -h, --help                Show this help.
+
+Input:
+  Query as positional arg(s), or piped via stdin. 1-5000 chars.
+
+Examples:
+  hivemind-search "product launch best practices"
+  hivemind-search --persona strategist --threshold 0.5 "competitive positioning"
+  hivemind-search --max 20 --no-rerank --json "email sequence openings" | jq
+
+Exit codes:
+  0 success   1 usage error   2 API error
+USAGE
+}
+
+die() { echo "Error: $*" >&2; exit "${2:-1}"; }
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) usage; exit 0 ;;
+  esac
+done
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Error: Credentials file not found at $ENV_FILE" >&2
+  echo "Request a key at https://myosin.typeform.com/api-request" >&2
+  exit 1
+fi
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+
+API_KEY="${HIVEMIND_API_KEY:-}"
+[[ -n "$API_KEY" ]] || die "HIVEMIND_API_KEY not set in $ENV_FILE"
+
+API_URL="${HIVEMIND_API_URL:-$DEFAULT_API_URL}"
+DEFAULT_PROJECT="${HIVEMIND_PROJECT_ID:-}"
+
+THRESHOLD="0.4"
+MAX="10"
+PERSONA=""
+KEY_PERSONA_RESULTS=""
+INTENT_FILTER="false"
+OBJECTIVE_FILTER="false"
+METADATA_BOOST="true"
+RERANK="true"
+PROJECT="$DEFAULT_PROJECT"
+OUTPUT_MODE="compact"
+TIMEOUT="$DEFAULT_TIMEOUT"
+QUERY_ARGS=()
+
+normalize_persona() {
+  case "$1" in
+    ghostwriter) echo "ghostwriter" ;;
+    strategist|genius-strategist) echo "genius-strategist" ;;
+    gtm|gtm-architect) echo "gtm-architect" ;;
+    general|general-assistant) echo "general-assistant" ;;
+    *) die "Unknown persona '$1'. Use: ghostwriter, strategist, gtm, general" ;;
+  esac
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --threshold)  [[ -n "${2:-}" ]] || die "--threshold requires a value"; THRESHOLD="$2"; shift 2 ;;
+    --max)        [[ -n "${2:-}" ]] || die "--max requires a value"; MAX="$2"; shift 2 ;;
+    --persona)    [[ -n "${2:-}" ]] || die "--persona requires a value"; PERSONA="$(normalize_persona "$2")"; shift 2 ;;
+    --key-persona-results) [[ -n "${2:-}" ]] || die "--key-persona-results requires a value"; KEY_PERSONA_RESULTS="$2"; shift 2 ;;
+    --intent-filtering)    INTENT_FILTER="true"; shift ;;
+    --objective-filtering) OBJECTIVE_FILTER="true"; shift ;;
+    --no-metadata-boost)   METADATA_BOOST="false"; shift ;;
+    --no-rerank)           RERANK="false"; shift ;;
+    --project)    [[ -n "${2:-}" ]] || die "--project requires a value"; PROJECT="$2"; shift 2 ;;
+    --no-project) PROJECT=""; shift ;;
+    --json)       OUTPUT_MODE="json"; shift ;;
+    --timeout)    [[ -n "${2:-}" ]] || die "--timeout requires a value"; TIMEOUT="$2"; shift 2 ;;
+    --url)        [[ -n "${2:-}" ]] || die "--url requires a value"; API_URL="$2"; shift 2 ;;
+    -h|--help)    usage; exit 0 ;;
+    --)           shift; QUERY_ARGS+=("$@"); break ;;
+    -*)           die "Unknown option '$1'" ;;
+    *)            QUERY_ARGS+=("$1"); shift ;;
+  esac
+done
+
+if [[ ${#QUERY_ARGS[@]} -gt 0 ]]; then
+  QUERY="${QUERY_ARGS[*]}"
+elif [[ ! -t 0 ]]; then
+  QUERY="$(cat)"
+else
+  usage >&2
+  exit 1
+fi
+[[ -n "$QUERY" ]] || die "Empty query"
+
+if [[ -n "$KEY_PERSONA_RESULTS" && -z "$PERSONA" ]]; then
+  die "--key-persona-results requires --persona"
+fi
+
+PAYLOAD="$(jq -n \
+  --arg query "$QUERY" \
+  --argjson relevanceThreshold "$THRESHOLD" \
+  --argjson maxResults "$MAX" \
+  --arg personaId "$PERSONA" \
+  --arg keyPersonaResults "$KEY_PERSONA_RESULTS" \
+  --argjson intentFiltering "$INTENT_FILTER" \
+  --argjson objectiveFiltering "$OBJECTIVE_FILTER" \
+  --argjson metadataBoosting "$METADATA_BOOST" \
+  --argjson reRanking "$RERANK" \
+  --arg projectId "$PROJECT" \
+  '{query: $query, relevanceThreshold: $relevanceThreshold, maxResults: $maxResults,
+    intentFiltering: $intentFiltering, objectiveFiltering: $objectiveFiltering,
+    metadataBoosting: $metadataBoosting, reRanking: $reRanking}
+    + (if $personaId != ""         then {personaId: $personaId}                      else {} end)
+    + (if $keyPersonaResults != "" then {keyPersonaResults: ($keyPersonaResults|tonumber)} else {} end)
+    + (if $projectId != ""         then {projectId: $projectId}                      else {} end)
+  '
+)"
+
+URL="${API_URL%/}/api/knowledge/search"
+
+RESPONSE="$(curl -sS -w '\n__HTTP_STATUS__:%{http_code}' --max-time "$TIMEOUT" \
+  -X POST "$URL" \
+  -H "x-api-key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD")" || die "Request failed (timeout or network error)" 2
+
+HTTP_CODE="$(printf '%s' "$RESPONSE" | sed -n 's/^__HTTP_STATUS__:\([0-9]*\)$/\1/p' | tail -n 1)"
+BODY="$(printf '%s' "$RESPONSE" | sed '$d')"
+
+if [[ "$HTTP_CODE" != "200" ]]; then
+  ERR_CODE="$(jq -r '.error.code // empty' <<<"$BODY" 2>/dev/null)"
+  ERR_MSG="$(jq -r '.error.message // empty' <<<"$BODY" 2>/dev/null)"
+  echo "Error: HTTP $HTTP_CODE${ERR_CODE:+ ($ERR_CODE)}${ERR_MSG:+: $ERR_MSG}" >&2
+  jq . <<<"$BODY" >&2 2>/dev/null || echo "$BODY" >&2
+  exit 2
+fi
+
+if [[ "$OUTPUT_MODE" == "json" ]]; then
+  jq . <<<"$BODY"
+else
+  CHUNK_COUNT="$(jq '(.data.chunks // []) | length' <<<"$BODY")"
+  if [[ "$CHUNK_COUNT" == "0" ]]; then
+    echo "No results above threshold $THRESHOLD. Try --threshold 0.2, a broader query, or --json to inspect the raw response." >&2
+    exit 0
+  fi
+  jq -r '
+    .data.chunks[]
+    | [ (.score|tostring), (.title // "(untitled)"), (.doc_type // ""), (.objective // "") ]
+    | "\(.[0])\t\(.[1])\t\(.[2])\t\(.[3])"
+  ' <<<"$BODY" | column -ts $'\t'
+fi
