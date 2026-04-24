@@ -98,18 +98,18 @@ Claude should invoke the `hivemind` script via the plugin and return a headline.
 
 ## Codex Plugin Install
 
-This repo ships both Codex plugin metadata at `skills/.codex-plugin/plugin.json` and Codex marketplace metadata at `.agents/plugins/marketplace.json`.
+This repo ships both Codex plugin metadata at `.codex-plugin/plugin.json` and Codex marketplace metadata at `.agents/plugins/marketplace.json`.
 
 Add the marketplace:
 
 ```bash
-codex marketplace add Myosin-xyz/hivemind-plugin
+codex plugin marketplace add Myosin-xyz/hivemind-plugin
 ```
 
 For local development, add your checkout instead:
 
 ```bash
-codex marketplace add /path/to/hivemind-plugin
+codex plugin marketplace add /path/to/hivemind-plugin
 ```
 
 Restart Codex, open Plugins, and install or enable **Hivemind** from the Hivemind marketplace. Codex's CLI currently adds marketplaces; it does not expose a Claude-style `plugin install` subcommand.

@@ -23,7 +23,7 @@
     "project-context",
     "ai-personas"
   ],
-  "skills": "./",
+  "skills": "./skills/",
   "interface": {
     "displayName": "Hivemind",
     "shortDescription": "Marketing AI personas, knowledge search, and project tools.",

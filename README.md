@@ -34,18 +34,18 @@ To update later: `/plugin update hivemind`. To remove: `/plugin uninstall hivemi
 
 ## Install as a Codex Plugin
 
-This repo also includes Codex plugin metadata in `skills/.codex-plugin/plugin.json` and Codex marketplace metadata in `.agents/plugins/marketplace.json`, using the same shared skill under `skills/hivemind/`.
+This repo also includes Codex plugin metadata in `.codex-plugin/plugin.json` and Codex marketplace metadata in `.agents/plugins/marketplace.json`, using the same shared skill under `skills/hivemind/`.
 
 Add the marketplace:
 
 ```bash
-codex marketplace add Myosin-xyz/hivemind-plugin
+codex plugin marketplace add Myosin-xyz/hivemind-plugin
 ```
 
 For local development, use the local checkout instead:
 
 ```bash
-codex marketplace add /path/to/hivemind-plugin
+codex plugin marketplace add /path/to/hivemind-plugin
 ```
 
 Then restart Codex, open Plugins, and install or enable **Hivemind** from the Hivemind marketplace. Codex does not currently expose a Claude-style `plugin install` CLI command; installation happens from the Codex Plugins UI after the marketplace is added.
@@ -115,7 +115,9 @@ Run any command with `--help` for full flag reference.
 hivemind-plugin/
 ├── .agents/
 │   └── plugins/
-│       └── marketplace.json        Codex marketplace entry for codex marketplace add
+│       └── marketplace.json        Codex marketplace entry for codex plugin marketplace add
+├── .codex-plugin/
+│   └── plugin.json                 Codex plugin manifest
 ├── .claude-plugin/
 │   ├── plugin.json                 Plugin manifest (id, version, author)
 │   └── marketplace.json            Marketplace entry so /plugin can add this repo
@@ -126,8 +128,6 @@ hivemind-plugin/
 ├── config/
 │   └── env.example                 Template credentials file
 └── skills/
-    ├── .codex-plugin/
-    │   └── plugin.json             Codex plugin manifest
     └── hivemind/                   The shared skill Claude Code and Codex load
         ├── SKILL.md                Skill definition with YAML frontmatter
         ├── references/             On-demand reference docs
