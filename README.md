@@ -42,13 +42,13 @@ Add the marketplace:
 codex plugin marketplace add Myosin-xyz/hivemind-plugin
 ```
 
-For local development, use the local checkout instead:
+For unpublished local development, add your checkout as a marketplace and temporarily point the marketplace entry at the checkout plugin root with a local source:
 
 ```bash
 codex plugin marketplace add /path/to/hivemind-plugin
 ```
 
-Then restart Codex, open Plugins, and install or enable **Hivemind** from the Hivemind marketplace. Codex does not currently expose a Claude-style `plugin install` CLI command; installation happens from the Codex Plugins UI after the marketplace is added.
+Then restart Codex, run `/plugins`, switch to the Hivemind marketplace tab, and choose **Install plugin** for **Hivemind**. Codex installs plugins from the plugin browser after the marketplace is added.
 
 The shared skill content is the same across Claude Code and Codex. If you only want the process instructions without plugin packaging, install the `skills/hivemind` skill from this repo as a skill-only setup.
 
@@ -117,7 +117,7 @@ hivemind-plugin/
 │   └── plugins/
 │       └── marketplace.json        Codex marketplace entry for codex plugin marketplace add
 ├── .codex-plugin/
-│   └── plugin.json                 Codex plugin manifest
+│   └── plugin.json                 Codex plugin manifest loaded from the Git-backed plugin source
 ├── .claude-plugin/
 │   ├── plugin.json                 Plugin manifest (id, version, author)
 │   └── marketplace.json            Marketplace entry so /plugin can add this repo
