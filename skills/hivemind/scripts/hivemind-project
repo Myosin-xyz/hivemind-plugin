@@ -10,6 +10,22 @@ ENV_FILE="${HIVEMIND_ENV_FILE:-$HOME/.config/hivemind/env}"
 DEFAULT_API_URL="https://hivemind.myosin.xyz"
 DEFAULT_TIMEOUT=60
 
+# Field limits — source of truth: hive-mind/lib/validation-schemas/api-project-schemas.ts
+# Server still validates; preflight is a fast-fail mirror so agents don't burn round-trips.
+LIMIT_DESCRIPTION=5000
+LIMIT_OBJECTIVE_ITEM=240
+LIMIT_OBJECTIVES_COUNT=10
+LIMIT_OTHER_ITEM=25
+LIMIT_AUDIENCES_COUNT=5
+LIMIT_GEOGRAPHICS_COUNT=5
+LIMIT_CHAINS_COUNT=10
+LIMIT_CHANNELS_COUNT=10
+LIMIT_TYPE_ITEM_MIN=2
+LIMIT_TYPE_ITEM_MAX=50
+LIMIT_TYPE_COUNT=4
+VALID_STAGES=(idea pre-launch launch growth scale n/a)
+VALIDATION_ERRORS=()
+
 usage() {
   cat <<'USAGE'
 Usage: hivemind-project <subcommand> [options]
@@ -137,6 +153,57 @@ csv_to_json_array() {
   jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))' <<<"$csv"
 }
 
+_validate_list() {
+  local flag="$1" csv="$2" max_count="$3" item_min="$4" item_max="$5"
+  [[ -z "$csv" ]] && return 0
+  local items n i item len
+  items=$(csv_to_json_array "$csv")
+  [[ "$items" == "null" ]] && return 0
+  n=$(jq 'length' <<<"$items")
+  if (( n > max_count )); then
+    VALIDATION_ERRORS+=("$flag has $n items (max $max_count)")
+  fi
+  for ((i=0; i<n; i++)); do
+    item=$(jq -r ".[$i]" <<<"$items")
+    len=${#item}
+    if (( len < item_min )); then
+      VALIDATION_ERRORS+=("$flag[$i] '$item' too short ($len chars, min $item_min)")
+    elif (( len > item_max )); then
+      VALIDATION_ERRORS+=("$flag[$i] '$item' too long ($len/$item_max chars)")
+    fi
+  done
+}
+
+# Validate parsed CLI args against API field limits. Collects all violations,
+# prints them all, exits 2 if any. Server still validates as backup.
+validate_inputs() {
+  if [[ -n "$DESCRIPTION" && ${#DESCRIPTION} -gt $LIMIT_DESCRIPTION ]]; then
+    VALIDATION_ERRORS+=("--description too long (${#DESCRIPTION}/$LIMIT_DESCRIPTION chars)")
+  fi
+  if [[ -n "$STAGE" ]]; then
+    local valid=0 s
+    for s in "${VALID_STAGES[@]}"; do
+      [[ "$STAGE" == "$s" ]] && { valid=1; break; }
+    done
+    (( valid == 0 )) && VALIDATION_ERRORS+=("--stage '$STAGE' invalid (use: ${VALID_STAGES[*]})")
+  fi
+  _validate_list "--type"        "$TYPES"       "$LIMIT_TYPE_COUNT"        "$LIMIT_TYPE_ITEM_MIN" "$LIMIT_TYPE_ITEM_MAX"
+  _validate_list "--audiences"   "$AUDIENCES"   "$LIMIT_AUDIENCES_COUNT"   1 "$LIMIT_OTHER_ITEM"
+  _validate_list "--geographics" "$GEOGRAPHICS" "$LIMIT_GEOGRAPHICS_COUNT" 1 "$LIMIT_OTHER_ITEM"
+  _validate_list "--chains"      "$CHAINS"      "$LIMIT_CHAINS_COUNT"      1 "$LIMIT_OTHER_ITEM"
+  _validate_list "--channels"    "$CHANNELS"    "$LIMIT_CHANNELS_COUNT"    1 "$LIMIT_OTHER_ITEM"
+  _validate_list "--objectives"  "$OBJECTIVES"  "$LIMIT_OBJECTIVES_COUNT"  1 "$LIMIT_OBJECTIVE_ITEM"
+
+  if (( ${#VALIDATION_ERRORS[@]} > 0 )); then
+    echo "Error: input validation failed:" >&2
+    local e
+    for e in "${VALIDATION_ERRORS[@]}"; do
+      echo "  - $e" >&2
+    done
+    exit 2
+  fi
+}
+
 build_body() {
   # Echoes a JSON object of all fields the user set. Used by create & update.
   local body='{}'
@@ -247,6 +314,7 @@ handle_response() {
 
 case "$SUB" in
   create)
+    validate_inputs
     BODY=$(build_body)
     HAS_URL=$(jq -r 'has("website_url")' <<<"$BODY")
     HAS_DESC=$(jq -r 'has("description")' <<<"$BODY")
@@ -265,6 +333,7 @@ case "$SUB" in
   update)
     [[ ${#POSITIONAL[@]} -ge 1 ]] || die "update requires a project id"
     PID="${POSITIONAL[0]}"
+    validate_inputs
     BODY=$(build_body)
     if [[ "$(jq -r 'length' <<<"$BODY")" == "0" ]]; then
       die "update requires at least one field change"

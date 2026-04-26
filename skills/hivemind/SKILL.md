@@ -36,6 +36,8 @@ Claude Code and Codex may install the plugin in different locations, so avoid re
 | `gtm-architect` | `gtm` | Tactics: launch plans, channel strategy, campaign calendars, funnels, budget allocation, KPI frameworks |
 | `general-assistant` | `general` | General marketing questions that don't fit the other three |
 
+*Either the canonical ID or the CLI alias works in `--persona`.*
+
 **Decision rules:**
 - "Write / draft / rewrite ..." → `ghostwriter`
 - "Analyze / evaluate / position / compare ..." → `strategist`
@@ -60,6 +62,7 @@ hivemind chat --persona gtm        "Build a Q2 launch plan for an API product"
 hivemind chat --persona strategist --project <uuid> "How should we respond to the competitor launch?"
 
 # Bypass the default project from HIVEMIND_PROJECT_ID for one call
+# (use if a project-scoped persona refuses your prompt as out-of-scope)
 hivemind chat --no-project --persona ghostwriter "Unscoped copy request"
 
 # Pipe long prompts via stdin (max 8000 chars)
@@ -72,7 +75,7 @@ hivemind chat --stream --persona gtm "Give me a full 90-day launch runbook"
 hivemind chat --persona strategist --json "What positioning framework works for dev tools?"
 ```
 
-**Conversations (persistent context):** only needed when you want Hivemind to remember prior turns across CLI invocations. Requires a user-attributed key and `--project`. See [references/examples.md](references/examples.md#conversations).
+**Conversations (persistent context):** by default, every call is a fresh context. To persist context across turns, use `--start-conversation` on turn 1 then `--conversation-id` on subsequent turns — see [references/examples.md](references/examples.md#conversations) for a full example. Requires a user-attributed key and `--project`.
 
 ## Prompt Best Practices
 
@@ -138,6 +141,21 @@ hivemind-project update <project-id> \
 hivemind-project update <project-id> --clear legal_considerations
 hivemind-project update <project-id> --clear-list audiences
 ```
+
+**List flags take a single quoted comma-separated string** (`--audiences "a,b,c"`), not separate args. Use `--clear-list FIELD` to send `[]`.
+
+**Field limits.** The CLI preflights these locally before calling the API. Source of truth: `lib/validation-schemas/api-project-schemas.ts` in the hive-mind repo.
+
+| Field (flag) | Per-item | Array max | Notes |
+|---|---|---|---|
+| `description` | 5000 chars | — | string |
+| `objectives` | 240 chars | 10 items | |
+| `audiences` | 25 chars | 5 items | |
+| `chains` | 25 chars | 10 items | |
+| `channels` | 25 chars | 10 items | |
+| `geographics` | 25 chars | 5 items | |
+| `project_type` (`--type`) | 2-50 chars | 4 items | free-form (any string) |
+| `stage` | — | — | enum: `idea`, `pre-launch`, `launch`, `growth`, `scale`, `n/a` |
 
 Creating / updating projects requires a **user-attributed** API key. Unattributed (legacy) keys can only `get`.
 
