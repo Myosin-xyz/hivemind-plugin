@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# hivemind — CLI for the Hivemind Chat API (POST /api/v1/chat).
+# hivemind — CLI for the Hivemind Chat API (/api/v1/chat).
 #
 # Sends a prompt to a Hivemind AI persona and prints the response.
 # Supports auto-intent classification, forced personas, streaming,
-# project context, and persistent conversations.
+# project context, persistent conversations, conversation discovery,
+# and a health check.
 #
 # Docs: see references/api-reference.md in the skill package.
 set -euo pipefail
@@ -17,8 +18,13 @@ usage() {
   cat <<'USAGE'
 Usage: hivemind chat [options] [prompt]
        hivemind [options] [prompt]        (chat is the default subcommand)
+       hivemind conversations [--json]
+       hivemind health [--json]
 
-Sends a prompt to Hivemind's chat API and prints the response.
+Subcommands:
+  chat                           Send a prompt to Hivemind's chat API.
+  conversations                  List API-owned conversations for this key.
+  health                         Run GET /api/v1/chat health check (no auth required).
 
 Options:
   --persona ID        Force a specific persona (skips auto-intent classification).
@@ -46,6 +52,7 @@ Input:
 
 Examples:
   hivemind chat "Write 3 headlines for a B2B SaaS landing page targeting CTOs"
+  hivemind conversations
   hivemind chat --persona strategist "Analyze positioning vs Vercel and Netlify"
   hivemind chat --stream --persona gtm "Build a Q2 launch plan for an API product"
   echo "detailed context..." | hivemind chat --persona ghostwriter --json
@@ -59,12 +66,118 @@ USAGE
 
 die() { echo "Error: $*" >&2; exit "${2:-1}"; }
 
+# --- Parse top-level subcommand before credential loading ---
+SUBCOMMAND="chat"
+if [[ "${1:-}" == "chat" || "${1:-}" == "conversations" || "${1:-}" == "health" ]]; then
+  SUBCOMMAND="$1"
+  shift
+fi
+
 # --- Short-circuit --help before credential loading ---
 for arg in "$@"; do
   case "$arg" in
     -h|--help) usage; exit 0 ;;
   esac
 done
+
+OUTPUT_MODE="text"
+TIMEOUT="$DEFAULT_TIMEOUT"
+URL_OVERRIDE=""
+
+if [[ "$SUBCOMMAND" == "conversations" ]]; then
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --json)    OUTPUT_MODE="json"; shift ;;
+      --timeout) [[ -n "${2:-}" ]] || die "--timeout requires a value"; TIMEOUT="$2"; shift 2 ;;
+      --url)     [[ -n "${2:-}" ]] || die "--url requires a value"; URL_OVERRIDE="$2"; shift 2 ;;
+      -h|--help) usage; exit 0 ;;
+      -*)        die "Unknown option '$1'" ;;
+      *)         die "conversations does not accept positional arguments" ;;
+    esac
+  done
+
+  if [[ ! -f "$ENV_FILE" ]]; then
+    echo "Error: Credentials file not found at $ENV_FILE" >&2
+    echo "Create it by running the installer or by hand:" >&2
+    echo "  mkdir -p ~/.config/hivemind && \$EDITOR ~/.config/hivemind/env" >&2
+    echo "Request an API key at https://myosin.typeform.com/api-request" >&2
+    exit 1
+  fi
+  # shellcheck source=/dev/null
+  source "$ENV_FILE"
+
+  API_KEY="${HIVEMIND_API_KEY:-}"
+  [[ -n "$API_KEY" ]] || die "HIVEMIND_API_KEY not set in $ENV_FILE"
+
+  API_URL="${URL_OVERRIDE:-${HIVEMIND_API_URL:-$DEFAULT_API_URL}}"
+  URL="${API_URL%/}/api/v1/conversations"
+  RESPONSE="$(curl -sS -w '\n__HTTP_STATUS__:%{http_code}' --max-time "$TIMEOUT" \
+    -H "x-api-key: $API_KEY" \
+    "$URL")" || die "Conversation list request failed (timeout or network error)" 2
+
+  HTTP_CODE="$(printf '%s' "$RESPONSE" | sed -n 's/^__HTTP_STATUS__:\([0-9]*\)$/\1/p' | tail -n 1)"
+  BODY="$(printf '%s' "$RESPONSE" | sed '$d')"
+  if [[ "$HTTP_CODE" != "200" ]]; then
+    ERR_CODE="$(jq -r '.error.code // .error // empty' <<<"$BODY" 2>/dev/null)"
+    ERR_MSG="$(jq -r '.error.message // .message // empty' <<<"$BODY" 2>/dev/null)"
+    echo "Error: HTTP $HTTP_CODE${ERR_CODE:+ ($ERR_CODE)}${ERR_MSG:+: $ERR_MSG}" >&2
+    jq . <<<"$BODY" >&2 2>/dev/null || echo "$BODY" >&2
+    exit 2
+  fi
+
+  if [[ "$OUTPUT_MODE" == "json" ]]; then
+    jq . <<<"$BODY"
+  else
+    jq -r '
+      if (.data | length) == 0 then
+        "No accessible conversations found."
+      else
+        .data[]
+        | "conversation_id:   \(.conversation_id)",
+          "conversation_title: \((.conversation_title // "") | if . == "" then "-" else . end)",
+          "project_id:        \(.project_id // "-")",
+          "last_activity_at:  \(.last_activity_at // "-")",
+          ""
+      end
+    ' <<<"$BODY"
+  fi
+  exit 0
+fi
+
+if [[ "$SUBCOMMAND" == "health" ]]; then
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --json)    OUTPUT_MODE="json"; shift ;;
+      --timeout) [[ -n "${2:-}" ]] || die "--timeout requires a value"; TIMEOUT="$2"; shift 2 ;;
+      --url)     [[ -n "${2:-}" ]] || die "--url requires a value"; URL_OVERRIDE="$2"; shift 2 ;;
+      -h|--help) usage; exit 0 ;;
+      -*)        die "Unknown option '$1'" ;;
+      *)         die "health does not accept positional arguments" ;;
+    esac
+  done
+
+  API_URL="${URL_OVERRIDE:-${HIVEMIND_API_URL:-$DEFAULT_API_URL}}"
+  URL="${API_URL%/}/api/v1/chat"
+  RESPONSE="$(curl -sS -w '\n__HTTP_STATUS__:%{http_code}' --max-time "$TIMEOUT" "$URL")" \
+    || die "Health check failed (timeout or network error)" 2
+
+  HTTP_CODE="$(printf '%s' "$RESPONSE" | sed -n 's/^__HTTP_STATUS__:\([0-9]*\)$/\1/p' | tail -n 1)"
+  BODY="$(printf '%s' "$RESPONSE" | sed '$d')"
+  if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "Error: HTTP $HTTP_CODE during chat health check" >&2
+    jq . <<<"$BODY" >&2 2>/dev/null || echo "$BODY" >&2
+    exit 2
+  fi
+
+  if [[ "$OUTPUT_MODE" == "json" ]]; then
+    jq . <<<"$BODY"
+  else
+    jq -r '"status:   \(.status // "-")",
+           "endpoint: \(.endpoint // "-")",
+           "version:  \(.version // "-")"' <<<"$BODY"
+  fi
+  exit 0
+fi
 
 # --- Load credentials ---
 
@@ -86,16 +199,11 @@ DEFAULT_PROJECT="${HIVEMIND_PROJECT_ID:-}"
 
 # --- Parse args ---
 
-# Accept `hivemind chat ...` or `hivemind ...` (chat is default).
-if [[ "${1:-}" == "chat" ]]; then shift; fi
-
 PERSONA=""
 STREAM="false"
 PROJECT="$DEFAULT_PROJECT"
 START_CONVO="false"
 CONVO_ID=""
-OUTPUT_MODE="text"
-TIMEOUT="$DEFAULT_TIMEOUT"
 PROMPT_ARGS=()
 
 normalize_persona() {

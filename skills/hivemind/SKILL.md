@@ -7,9 +7,9 @@ description: Use when the user needs any marketing, brand, strategy, or go-to-ma
 
 Hivemind is a RAG-powered marketing AI with four specialist personas and a curated knowledge base. This skill exposes three APIs:
 
-- **Chat** (`hivemind`) — send a prompt to a persona, get a response. Most common use.
+- **Chat** (`hivemind`) — send a prompt to a persona, get a response, list resumable conversations, or run the chat health check.
 - **Knowledge search** (`hivemind-search`) — RAG retrieval without the LLM layer.
-- **Projects** (`hivemind-project`) — create/poll/update projects used as chat context.
+- **Projects** (`hivemind-project`) — list/create/poll/update projects used as chat context.
 
 All three scripts auto-load credentials from `~/.config/hivemind/env` (chmod 600). Never echo or log API keys.
 
@@ -73,9 +73,15 @@ hivemind chat --stream --persona gtm "Give me a full 90-day launch runbook"
 
 # Full JSON including sources
 hivemind chat --persona strategist --json "What positioning framework works for dev tools?"
+
+# List conversation IDs you can resume with --conversation-id
+hivemind conversations
+
+# Health check (no auth required)
+hivemind health
 ```
 
-**Conversations (persistent context):** by default, every call is a fresh context. To persist context across turns, use `--start-conversation` on turn 1 then `--conversation-id` on subsequent turns — see [references/examples.md](references/examples.md#conversations) for a full example. Requires a user-attributed key and `--project`.
+**Conversations (persistent context):** by default, every call is a fresh context. To persist context across turns, use `--start-conversation` on turn 1 then `--conversation-id` on subsequent turns. To discover existing resumable conversations for the current key, use `hivemind conversations`. See [references/examples.md](references/examples.md#conversations) for a full example. Requires a user-attributed key and `--project`.
 
 ## Prompt Best Practices
 
@@ -128,6 +134,9 @@ hivemind-project create \
 
 # Poll until enrichment completes (or fails)
 hivemind-project wait <project-id>
+
+# List accessible projects
+hivemind-project list
 
 # Fetch current state
 hivemind-project get <project-id>

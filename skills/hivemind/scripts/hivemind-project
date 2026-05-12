@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # hivemind-project — CLI for the Hivemind Projects API (/api/v1/projects).
 #
-# Subcommands: create | get | update | wait
+# Subcommands: create | list | get | update | wait
 # All requests require a user-attributed API key.
 set -euo pipefail
 
@@ -32,6 +32,7 @@ Usage: hivemind-project <subcommand> [options]
 
 Subcommands:
   create [options]             Create a new project (returns immediately; enrichment runs async).
+  list [--json]                List projects accessible to this API key.
   get <id> [--json]            Fetch a project by UUID.
   update <id> [options]        PATCH a project's fields.
   wait <id> [--timeout N]      Poll a project until enrichment_status is ready|failed.
@@ -283,6 +284,7 @@ request() {
 
 handle_response() {
   local raw="$1"
+  local mode="${2:-project}"
   local http_code body
   http_code="$(printf '%s' "$raw" | sed -n 's/^__HTTP_STATUS__:\([0-9]*\)$/\1/p' | tail -n 1)"
   body="$(printf '%s' "$raw" | sed '$d')"
@@ -298,6 +300,18 @@ handle_response() {
 
   if [[ "$OUTPUT_MODE" == "json" ]]; then
     jq . <<<"$body"
+  elif [[ "$mode" == "list" ]]; then
+    jq -r '
+      if (.data | length) == 0 then
+        "No accessible projects found."
+      else
+        .data[]
+        | "project_id:            \(.project_id)",
+          "project_title:         \((.project_title // "") | if . == "" then "-" else . end)",
+          "last_chat_activity_at: \(.last_chat_activity_at // "-")",
+          ""
+      end
+    ' <<<"$body"
   else
     jq -r '
       .data as $d
@@ -322,6 +336,10 @@ case "$SUB" in
       die "create requires --url or --description"
     fi
     handle_response "$(request POST /api/v1/projects "$BODY")"
+    ;;
+
+  list)
+    handle_response "$(request GET /api/v1/projects)" "list"
     ;;
 
   get)
@@ -375,6 +393,6 @@ case "$SUB" in
     usage; exit 0 ;;
 
   *)
-    die "Unknown subcommand '$SUB'. Use: create | get | update | wait"
+    die "Unknown subcommand '$SUB'. Use: create | list | get | update | wait"
     ;;
 esac

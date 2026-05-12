@@ -5,6 +5,7 @@ Copy-pastable recipes for real Hivemind workflows. Assumes the CLIs are on `$PAT
 ## Contents
 
 - [Basic chat](#basic-chat)
+- [Health checks](#health-checks)
 - [Streaming](#streaming)
 - [Conversations](#conversations)
 - [Project + chat](#project--chat)
@@ -37,6 +38,16 @@ Tone: confident, plain-English, no jargon
 EOF
 ```
 
+## Health checks
+
+```bash
+# Chat API health check (no API key required)
+hivemind health
+
+# List projects this key can access
+hivemind-project list
+```
+
 ## Streaming
 
 ```bash
@@ -53,6 +64,9 @@ Persistent conversations let Hivemind remember prior turns across CLI invocation
 
 ```bash
 PROJECT_ID="a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+# Discover resumable conversations already owned by this key
+hivemind conversations
 
 # Turn 1 — start a new conversation, capture IDs
 RESP=$(hivemind chat --json --project "$PROJECT_ID" --start-conversation \

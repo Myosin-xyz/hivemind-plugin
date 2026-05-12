@@ -135,9 +135,54 @@ No auth required. Returns `{ "status": "ok", "endpoint": "HiveMind Chat API (ext
 
 ---
 
+## Conversations API — `GET /api/v1/conversations`
+
+Lists persistent conversations owned by the API key's attributed user, scoped to projects the key can access.
+
+Requires `x-api-key`.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "conversation_id": "uuid",
+      "conversation_title": "B2B SaaS launch playbook",
+      "project_id": "uuid",
+      "last_activity_at": "2026-05-05T14:22:09.000Z"
+    }
+  ]
+}
+```
+
+Use the returned `conversation_id` with `POST /api/v1/chat` and `conversationId`.
+
+---
+
 ## Projects API — `/api/v1/projects`
 
 Projects are context containers. Create once, reference via `projectId` in chat. Enrichment (website scrape + AI extraction + social scrape) runs asynchronously — POST returns 202 immediately and you poll until `enrichment_status` is `ready` or `failed`.
+
+### `GET /api/v1/projects`
+
+Lists projects this key can access. Returns newest first, excludes pending placeholder projects, and is capped at 100 rows.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "project_id": "uuid",
+      "project_title": "My Project",
+      "last_chat_activity_at": "2026-05-04T18:31:02.000Z"
+    }
+  ]
+}
+```
 
 ### `POST /api/v1/projects`
 

@@ -1,6 +1,6 @@
 # Hivemind Plugin
 
-A Claude Code plugin, Codex plugin, and CLI for [Hivemind](https://myosin.xyz/hivemind) — Myosin's RAG-powered marketing AI. Lets agents (and humans) call the Chat, Knowledge Search, and Projects APIs.
+A Claude Code plugin, Codex plugin, and CLI for [Hivemind](https://myosin.xyz/hivemind) — Myosin's RAG-powered marketing AI. Lets agents (and humans) call the Chat, Knowledge Search, Projects, and Conversations APIs.
 
 - **Chat API** — consult Hivemind's AI personas (ghostwriter, strategist, GTM architect, general assistant)
 - **Knowledge API** — semantic search over a curated marketing knowledge base with persona filtering, metadata boosting, and LLM reranking
@@ -91,14 +91,21 @@ hivemind chat --persona gtm        "Build a Q2 launch plan for a new API product
 # Stream tokens as they arrive
 hivemind chat --stream "Give me a go-to-market plan for a B2B SaaS product"
 
+# Conversations — list resumable conversation IDs for this key
+hivemind conversations
+
 # Knowledge search — RAG without the LLM layer
 hivemind-search --threshold 0.5 --max 10 "product launch best practices"
 hivemind-search --persona genius-strategist "competitive positioning frameworks"
 
-# Projects — create, poll, update
+# Projects — list, create, poll, update
+hivemind-project list
 hivemind-project create --url https://example.com --name "My Project"
 hivemind-project get <project-id>
 hivemind-project update <project-id> --stage growth --audiences "developers,enterprise"
+
+# Optional health check (GET /api/v1/chat)
+hivemind health
 ```
 
 Run any command with `--help` for full flag reference.
